@@ -1,0 +1,25 @@
+{
+  "name": "revisor-inteligente-de-politicas",
+  "version": "1.0.0",
+  "description": "Ferramenta web de revisão crítica de políticas corporativas com IA (Controles Internos / GRC).",
+  "private": true,
+  "type": "module",
+  "main": "server/server.js",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "demo": "node server/server.js --demo",
+    "test": "node --test test/*.test.js",
+    "samples": "node scripts/generate-samples.js"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
+    "@xmldom/xmldom": "^0.9.12",
+    "docx": "^9.8.1",
+    "fflate": "^0.8.3",
+    "unpdf": "^1.8.1"
+  }
+}
