@@ -9,6 +9,7 @@ import {
   renderResponsabilidades, renderAmbiguidades, renderRiscos, renderQuestionamentos, renderGovernanca, renderConsolidated,
 } from './shared/render.js';
 import { buildHtmlReport, reportFileName } from './shared/html-exporter.js';
+import * as api from './api-client.js';
 
 const $ = (id) => document.getElementById(id);
 const ACCEPTED = ['docx', 'txt', 'md', 'pdf'];
@@ -41,11 +42,21 @@ async function init() {
   loadLogo();
   renderMenu();
   try {
-    const res = await fetch('api/status');
-    state.server = await res.json();
+    state.server = await api.getStatus();
     const pill = $('server-status');
     pill.hidden = false;
-    if (state.server.demo) {
+    if (state.server.standalone) {
+      pill.textContent = `IA · ${state.server.modelo}`;
+      pill.className = 'status-pill';
+      $('api-key-box').hidden = false;
+      $('api-key').addEventListener('input', (e) => {
+        api.setApiKey(e.target.value);
+        updateStartButton();
+      });
+      document.querySelector('.privacy-note').textContent =
+        'O arquivo é lido no seu próprio navegador e não é armazenado. O conteúdo é enviado ao serviço de IA da Anthropic apenas quando você clicar em “Iniciar revisão”.';
+      $('file-input').accept = '.docx,.txt,.md';
+    } else if (state.server.demo) {
       pill.textContent = 'Modo de teste (sem IA)';
       pill.className = 'status-pill status-error';
     } else if (!state.server.apiConfigurada) {
@@ -56,7 +67,8 @@ async function init() {
       pill.textContent = `IA ativa · ${state.server.modelo}`;
       pill.className = 'status-pill';
     }
-    $('format-hint').textContent = `Formatos aceitos: .docx (recomendado), .txt, .md e .pdf · até ${state.server.limiteUploadMb} MB`;
+    const formatos = (state.server.formatos ?? ACCEPTED).map((f) => `.${f}`).join(', ');
+    $('format-hint').textContent = `Formatos aceitos: ${formatos} (.docx recomendado) · até ${state.server.limiteUploadMb} MB`;
   } catch {
     showError('Não foi possível conectar ao servidor da ferramenta.');
   }
@@ -67,6 +79,15 @@ async function init() {
 
 // Logotipo oficial opcional: coloque o arquivo em public/brand/logo.svg (ou .png).
 async function loadLogo() {
+  const embedded = globalThis.__LOGO_DATA_URL__; // embutido na versão em arquivo único
+  if (embedded) {
+    state.logo = { src: 'embutido', dataUrl: embedded };
+    $('brand-logo').src = embedded;
+    $('brand-logo').hidden = false;
+    $('brand-wordmark').hidden = true;
+    return;
+  }
+  if (location.protocol === 'file:') return;
   for (const src of LOGO_CANDIDATES) {
     try {
       const res = await fetch(src, { cache: 'no-store' });
@@ -217,9 +238,10 @@ async function loadFile(file) {
   $('file-format-icon').textContent = ext.toUpperCase().slice(0, 4);
   $('file-stats').textContent = `${(file.size / 1024).toFixed(0)} KB`;
 
-  if (!ACCEPTED.includes(ext)) {
+  const accepted = state.server.formatos ?? ACCEPTED;
+  if (!accepted.includes(ext)) {
     setFileStatus('Formato não suportado', 'error');
-    return showError(`O formato ".${ext}" não é aceito. Envie um arquivo .docx, .txt, .md ou .pdf.`);
+    return showError(`O formato ".${ext}" não é aceito. Envie um arquivo ${accepted.map((f) => `.${f}`).join(', ')}.`);
   }
   if (file.size > state.server.limiteUploadMb * 1024 * 1024) {
     setFileStatus('Arquivo muito grande', 'error');
@@ -232,16 +254,10 @@ async function loadFile(file) {
 
   setFileStatus('Lendo documento…', 'busy');
   try {
-    const contentBase64 = await toBase64(file);
-    const res = await fetch('api/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: file.name, contentBase64 }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.erro || 'Falha na leitura do documento.');
-    state.document = data.document;
-    const s = data.document.stats;
+    const document = await api.parseFile(file, state.server.standalone ? '' : await toBase64(file));
+    const data = { document };
+    state.document = document;
+    const s = document.stats;
     setFileStatus('Lido com sucesso', 'ok');
     $('file-stats').textContent = `${(file.size / 1024).toFixed(0)} KB · ${s.titulos} títulos · ${s.paragrafos} parágrafos · ${s.itensLista} itens de lista · ${s.tabelas} tabelas · ${s.caracteres.toLocaleString('pt-BR')} caracteres`;
     const warnings = data.document.warnings ?? [];
@@ -249,11 +265,17 @@ async function loadFile(file) {
     $('file-warnings').hidden = !warnings.length;
     $('preview-body').innerHTML = renderRevisedPolicy(buildRevisedPolicy(data.document.blocks, { blocosRevisados: [] }));
     $('preview').hidden = false;
-    $('btn-start').disabled = false;
+    updateStartButton();
   } catch (err) {
     setFileStatus('Erro na leitura', 'error');
     showError(err.message);
   }
+}
+
+function updateStartButton() {
+  const needsKey = state.server.standalone && !$('api-key').value.trim();
+  $('btn-start').disabled = !state.document || needsKey;
+  $('api-key-hint').hidden = !needsKey || !state.document;
 }
 
 function clearResult() {
@@ -298,17 +320,7 @@ async function startReview() {
   }, 1000);
 
   try {
-    const res = await fetch('api/review', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ document: state.document }),
-      signal: state.controller.signal,
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.erro || `Falha na revisão (HTTP ${res.status}).`);
-    }
-    const result = await readNdjson(res.body);
+    const result = await api.runReview(state.document, { onProgress: showProgress, signal: state.controller.signal });
     state.review = result.review;
     state.meta = result.meta;
     prepareResult();
@@ -324,28 +336,9 @@ async function startReview() {
   }
 }
 
-async function readNdjson(body) {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (value) buffer += decoder.decode(value, { stream: true });
-    let idx;
-    while ((idx = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, idx).trim();
-      buffer = buffer.slice(idx + 1);
-      if (!line) continue;
-      const evt = JSON.parse(line);
-      if (evt.type === 'progress') {
-        $('progress-phase').textContent = PHASES[evt.phase] ?? PHASES.thinking;
-        if (evt.chars) $('progress-chars').textContent = `${evt.chars.toLocaleString('pt-BR')} caracteres recebidos`;
-      } else if (evt.type === 'result') return evt;
-      else if (evt.type === 'error') throw new Error(evt.message);
-    }
-    if (done) break;
-  }
-  throw new Error('A conexão foi encerrada antes do fim da revisão. Tente novamente.');
+function showProgress(evt) {
+  $('progress-phase').textContent = PHASES[evt.phase] ?? PHASES.thinking;
+  if (evt.chars) $('progress-chars').textContent = `${evt.chars.toLocaleString('pt-BR')} caracteres recebidos`;
 }
 
 // ---------------------------------------------------------------------------
@@ -356,7 +349,6 @@ function bindFilters() {
   $('f-busca').addEventListener('input', (e) => {
     f.busca = e.target.value.trim();
     renderTheme();
-    renderMenu();
   });
   for (const key of ['secao', 'classificacao', 'categoria', 'tipo']) {
     $(`f-${key}`).addEventListener('change', (e) => {
@@ -490,16 +482,8 @@ async function downloadDocx() {
   const btn = $('btn-docx');
   btn.disabled = true;
   try {
-    const res = await fetch('api/export/docx', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ document: state.document, review: state.review, meta: state.meta }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.erro || 'Falha ao gerar o .docx.');
-    }
-    downloadBlob(await res.blob(), reportFileName(state.document.fileName, 'docx').replace('revisao-', 'politica-revisada-'));
+    const blob = await api.exportDocx({ document: state.document, review: state.review, meta: state.meta });
+    downloadBlob(blob, reportFileName(state.document.fileName, 'docx').replace('revisao-', 'politica-revisada-'));
   } catch (err) {
     showError(err.message);
   } finally {

@@ -97,7 +97,8 @@ function legend() {
   ];
 }
 
-export async function buildRevisedDocx({ document: doc, review, meta = {} }) {
+// Monta o documento Word (usado pelo servidor e pela versão em arquivo único).
+export function buildRevisedDocument({ document: doc, review, meta = {} }) {
   const revised = buildRevisedPolicy(doc.blocks, review);
   const unified = unifyFindings(review);
   const dateFmt = new Date(meta.date ?? Date.now()).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
@@ -163,6 +164,10 @@ export async function buildRevisedDocx({ document: doc, review, meta = {} }) {
       children: [...intro, ...policyBody(revised), ...depara, ...questionamentos],
     }],
   });
-  return Packer.toBuffer(document);
+  return document;
+}
+
+export async function buildRevisedDocx(args) {
+  return Packer.toBuffer(buildRevisedDocument(args));
 }
 

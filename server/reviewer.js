@@ -1,6 +1,8 @@
-// Comunicação com a API da Anthropic (somente no servidor).
-// A chave é lida da variável de ambiente ANTHROPIC_API_KEY pelo SDK;
-// ela nunca é enviada ao navegador.
+// Comunicação com a API da Anthropic.
+// Na versão com servidor, a chave é lida da variável de ambiente
+// ANTHROPIC_API_KEY pelo SDK e nunca é enviada ao navegador.
+// A versão em arquivo único (standalone/) reutiliza este módulo passando um
+// cliente criado com a chave digitada pelo usuário na tela.
 
 import Anthropic from '@anthropic-ai/sdk';
 import { SYSTEM_PROMPT, buildUserMessage, buildSchemaInstruction } from './prompt.js';
@@ -22,31 +24,33 @@ function getClient() {
 }
 
 export function config() {
+  const env = typeof process !== 'undefined' && process.env ? process.env : {};
   return {
-    model: process.env.ANTHROPIC_MODEL || 'claude-opus-5-5',
-    effort: process.env.REVIEW_EFFORT || 'high',
-    maxTokens: Number(process.env.REVIEW_MAX_TOKENS || 64000),
-    structuredOutput: process.env.STRUCTURED_OUTPUT !== 'false',
-    fallback: process.env.REFUSAL_FALLBACK !== 'false',
+    model: env.ANTHROPIC_MODEL || 'claude-opus-5-5',
+    effort: env.REVIEW_EFFORT || 'high',
+    maxTokens: Number(env.REVIEW_MAX_TOKENS || 64000),
+    structuredOutput: env.STRUCTURED_OUTPUT !== 'false',
+    fallback: env.REFUSAL_FALLBACK !== 'false',
   };
 }
 
 // onProgress({ phase, chars }) é chamado durante o streaming.
-export async function reviewDocument(parsed, { onProgress = () => {}, signal } = {}) {
+export async function reviewDocument(parsed, { onProgress = () => {}, signal, client: apiClient } = {}) {
   const cfg = config();
+  const api = apiClient ?? getClient();
   const documentText = toModelText(parsed.blocks);
   const userMessage = buildUserMessage({ fileName: parsed.fileName, documentText });
 
   let text;
   try {
-    text = await callModel(cfg, userMessage, cfg.structuredOutput, onProgress, signal);
+    text = await callModel(api, cfg, userMessage, cfg.structuredOutput, onProgress, signal);
   } catch (err) {
     // Se o schema não for aceito pela API, repete descrevendo o formato no prompt.
     if (cfg.structuredOutput && err instanceof Anthropic.BadRequestError && /schema|output_config|format/i.test(err.message)) {
       console.warn('[revisao] structured outputs recusado pela API; repetindo com schema no prompt.');
       onProgress({ phase: 'retry', chars: 0 });
       try {
-        text = await callModel(cfg, userMessage, false, onProgress, signal);
+        text = await callModel(api, cfg, userMessage, false, onProgress, signal);
       } catch (retryErr) {
         throw translateError(retryErr);
       }
@@ -67,7 +71,7 @@ export async function reviewDocument(parsed, { onProgress = () => {}, signal } =
   };
 }
 
-async function callModel(cfg, userMessage, structured, onProgress, signal) {
+async function callModel(api, cfg, userMessage, structured, onProgress, signal) {
   const params = {
     model: cfg.model,
     max_tokens: cfg.maxTokens,
@@ -83,7 +87,7 @@ async function callModel(cfg, userMessage, structured, onProgress, signal) {
     params.fallbacks = 'default';
   }
 
-  const stream = getClient().beta.messages.stream(params, { signal });
+  const stream = api.beta.messages.stream(params, { signal });
   let chars = 0;
   let lastChars = -Infinity;
   let lastThinking = 0;
@@ -142,7 +146,7 @@ function translateError(err) {
   if (err instanceof ReviewError) return err;
   if (err instanceof Anthropic.APIUserAbortError) return new ReviewError('Revisão cancelada.', 499);
   if (err instanceof Anthropic.AuthenticationError) {
-    return new ReviewError('Chave da API inválida ou ausente. Verifique a variável ANTHROPIC_API_KEY no servidor.', 500);
+    return new ReviewError('Chave da API inválida ou ausente. Verifique a chave configurada (ANTHROPIC_API_KEY).', 500);
   }
   if (err instanceof Anthropic.PermissionDeniedError) {
     return new ReviewError('A chave da API não tem permissão para usar o modelo configurado.', 500);

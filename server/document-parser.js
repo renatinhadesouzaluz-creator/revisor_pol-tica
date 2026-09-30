@@ -32,7 +32,7 @@ export async function parseDocument(buffer, fileName) {
     }
     blocks = parseDocx(buffer, warnings);
   } else if (ext === 'pdf') {
-    if (buffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
+    if (String.fromCharCode(...buffer.subarray(0, 5)) !== '%PDF-') {
       throw new DocumentError('O arquivo não é um PDF válido.');
     }
     blocks = await parsePdf(buffer, warnings);

@@ -131,6 +131,10 @@ body {
 .dropzone svg { width: 48px; height: 48px; color: var(--cimed-navy); background: var(--cimed-yellow); border-radius: 50%; padding: 10px; }
 .dropzone strong { font-size: 20px; color: var(--cimed-navy); }
 .dropzone:hover, .dropzone.drag { border-color: var(--cimed-yellow-strong); background: var(--cimed-yellow-soft); }
+.api-key-box { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--cimed-yellow); border-radius: var(--radius); padding: 14px 16px; margin: 16px 0 0; }
+.api-key-box input { width: 100%; font: inherit; font-size: 14px; padding: 9px 12px; border: 1px solid #cfd2cb; border-radius: 6px; margin: 6px 0 4px; }
+.api-key-box p { margin: 0; }
+.key-hint { margin: 10px 0 0; font-size: 13px; color: var(--warn); font-weight: 600; }
 .privacy-note { font-size: 13px; color: var(--muted); margin: 10px 2px 18px; }
 
 .file-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }

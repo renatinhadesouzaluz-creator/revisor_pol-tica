@@ -62,6 +62,11 @@
           <span>Arraste o arquivo para cá ou clique para selecionar</span>
           <span class="muted" id="format-hint">Formatos aceitos: .docx (recomendado), .txt, .md e .pdf</span>
         </label>
+        <div id="api-key-box" class="api-key-box" hidden>
+          <label for="api-key"><strong>Chave da API da Anthropic</strong></label>
+          <input type="password" id="api-key" autocomplete="off" spellcheck="false" placeholder="Cole aqui a chave fornecida pelo responsável da conta">
+          <p class="muted small">A chave fica somente na memória desta página: não é gravada no arquivo nem no navegador e é apagada ao fechar a página. Não compartilhe sua chave.</p>
+        </div>
         <p class="privacy-note">O arquivo é processado em memória e não é armazenado pela ferramenta. O conteúdo é enviado ao serviço de IA apenas quando você clicar em “Iniciar revisão”.</p>
 
         <div id="file-card" class="file-card" hidden>
@@ -81,6 +86,7 @@
             </div>
           </div>
           <ul id="file-warnings" class="warnings" hidden></ul>
+          <p id="api-key-hint" class="key-hint" hidden>Informe a chave da API acima para iniciar a revisão.</p>
         </div>
 
         <details id="preview" class="preview" hidden>

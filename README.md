@@ -92,7 +92,17 @@ Para parar o servidor, pressione `Ctrl + C` no terminal.
 
 A ferramenta abre vazia, pronta para receber a sua política — não há documentos de exemplo.
 
-## 5. Como usar
+### Versão em arquivo único (sem instalar nada)
+
+O arquivo `dist/revisor-politicas-cimed.html` contém a ferramenta inteira. Basta abri-lo no navegador (Chrome ou Edge), informar a **chave da API da Anthropic** no campo indicado e enviar a política.
+
+- A chave é digitada na tela e fica **somente na memória da página**: não é gravada no arquivo, nem no navegador, e é apagada ao fechar a página. Por isso, cada pessoa precisa informá-la a cada uso.
+- A leitura do documento e a geração do .docx e do relatório acontecem no próprio navegador; o texto da política é enviado **diretamente do navegador para a API da Anthropic**.
+- Aceita `.docx`, `.txt` e `.md` (PDF só na versão com servidor).
+- **Atenção de segurança:** nesta versão a chave passa pelo navegador de quem usa. Para uso por todo o time, a versão com servidor (`npm start`) é a recomendada, pois a chave fica protegida no servidor e ninguém precisa conhecê-la.
+- Para gerar o arquivo novamente após mudanças (prompt, cores, logotipo): `npm run build:html`.
+
+
 
 A navegação é feita pelo **menu lateral** (no celular, pelo botão ☰ no topo). Cada tema abre em uma tela própria.
 
@@ -225,6 +235,8 @@ Recomendações para uso contínuo:
 │   ├── demo-reviewer.js        # Revisão simulada usada apenas nos testes (DEMO_MODE=true)
 │   ├── document-parser.js      # Leitura de .docx, .txt, .md e .pdf
 │   └── docx-exporter.js        # Geração da política revisada em .docx
+├── standalone/                 # Versão em arquivo único (build.js e adaptação para o navegador)
+├── dist/revisor-politicas-cimed.html  # Ferramenta em arquivo único, pronta para abrir
 ├── test/                       # Testes automatizados (npm test)
 │   └── fixtures/               # Documentos usados somente pelos testes
 ├── .env.example                # Modelo de configuração
