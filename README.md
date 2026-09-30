@@ -1,8 +1,8 @@
-# Revisor Inteligente de Políticas
+# Revisor Inteligente de Políticas · Cimed
 
 Ferramenta web para o time de **Controles Internos / GRC** revisar políticas corporativas com apoio de inteligência artificial.
 
-O usuário envia a política, a IA faz uma revisão crítica (clareza, tempo verbal, duplicidades, conceitos, papéis e responsabilidades, ambiguidades, riscos de interpretação, governança e controles internos) e o resultado aparece organizado em abas, com filtros, DE/PARA, política revisada com destaques e questionamentos para a área. O resultado pode ser baixado como **relatório HTML** (abre em qualquer navegador) e como **política revisada em .docx**.
+O usuário envia a política, a IA faz uma revisão crítica (clareza, tempo verbal, duplicidades, conceitos, papéis e responsabilidades, ambiguidades, riscos de interpretação, governança e controles internos) e o resultado aparece organizado em abas, com filtros, DE/PARA, política revisada com destaques e questionamentos para a área. A interface segue a identidade visual da Cimed (amarelo institucional com azul-marinho de apoio) e cada tema da revisão tem **seu próprio item de menu e sua própria tela**. O resultado pode ser baixado como **relatório HTML** (abre em qualquer navegador) e como **política revisada em .docx**.
 
 > A IA **não cria regras, responsabilidades, alçadas, prazos ou aprovações** que não estejam no documento. Quando falta informação, ela registra um **questionamento para validação da área**. Alterações que podem mudar o sentido de uma regra aparecem marcadas como **“Requer validação da área”**.
 
@@ -90,30 +90,37 @@ Abra o navegador em **<http://localhost:3000>**.
 
 Para parar o servidor, pressione `Ctrl + C` no terminal.
 
-### Modo demonstração (sem chave de API)
-
-```bash
-npm run demo
-```
-
-Executa a ferramenta com uma **revisão simulada por regras simples**, sem IA e sem enviar dados para fora. Serve para conhecer a interface, treinar usuários e testar as exportações. O resultado é claramente identificado como “MODO DEMONSTRAÇÃO” e **não deve ser usado como revisão oficial**.
-
-Políticas de exemplo ficam na pasta `samples/` (recrie com `npm run samples`).
+A ferramenta abre vazia, pronta para receber a sua política — não há documentos de exemplo.
 
 ## 5. Como usar
 
-1. **Inserir documento** – arraste o arquivo para a área “Envie a política que deseja revisar” ou clique para selecionar. A ferramenta mostra nome, formato, status da leitura e a estrutura identificada (títulos, numeração, listas e tabelas). Use **Substituir arquivo** para trocar.
+A navegação é feita pelo **menu lateral** (no celular, pelo botão ☰ no topo). Cada tema abre em uma tela própria.
+
+1. **Enviar política** – arraste o arquivo para a área “Envie a política que deseja revisar” ou clique para selecionar. A ferramenta mostra nome, formato, status da leitura e a estrutura identificada (títulos, numeração, listas e tabelas). Use **Substituir arquivo** para trocar.
 2. **Iniciar revisão** – a análise costuma levar alguns minutos. Mantenha a página aberta; é possível cancelar.
-3. **Resultados**:
-   - **Cards** no topo com os totais (apontamentos, clareza, ambiguidades, duplicidades, conceitos, responsabilidades, riscos e questionamentos). Não há “nota” da política: são apresentados fatos e apontamentos.
-   - **Abas**: Resumo Executivo · Política Revisada · DE/PARA · Duplicidades · Conceitos · Papéis e Responsabilidades · Ambiguidades e Riscos · Questionamentos para a Área · Governança e Controles Internos · Todos os apontamentos.
-   - **Filtros**: pesquisa textual, seção da política, classificação (ajuste editorial / requer validação), categoria do DE/PARA e tipo de apontamento (na aba “Todos os apontamentos”).
-   - Os botões com o código do bloco (ex.: `B12`) levam direto ao trecho na **Política Revisada**.
-4. **Baixar** o relatório HTML e/ou a política revisada em .docx.
+3. **Resultado da revisão** – ao final, o menu passa a exibir um item para cada tema, com a quantidade de apontamentos:
+   - Resumo Executivo (cards com os totais e validação da estrutura mínima — sem “nota” da política);
+   - Política Revisada;
+   - DE/PARA;
+   - Duplicidades;
+   - Conceitos;
+   - Papéis e Responsabilidades;
+   - Ambiguidades;
+   - Riscos de Interpretação;
+   - Questionamentos para a Área;
+   - Governança e Controles Internos;
+   - Todos os Apontamentos (visão consolidada).
+4. Em cada tema há **filtros**: pesquisa textual, seção da política, classificação (ajuste editorial / requer validação), categoria (DE/PARA) e tipo de apontamento (Todos os Apontamentos). Os botões com o código do bloco (ex.: `B12`) levam direto ao trecho na Política Revisada.
+5. **Exportar** (no menu): Baixar Relatório em HTML e Baixar Política Revisada (.docx).
 
-Cores utilizadas: **cinza** = informação · **âmbar** = requer validação da área · **vermelho** = possível risco · **verde** = ajuste editorial.
+Cores funcionais: **cinza** = informação · **laranja** = requer validação da área · **vermelho** = possível risco · **verde** = ajuste editorial. O amarelo é reservado à marca, para não ser confundido com alertas.
 
-> Os resultados não são salvos pela ferramenta. Baixe o relatório antes de fechar a página ou iniciar nova revisão.
+> Os resultados não são salvos pela ferramenta. Baixe o relatório antes de fechar a página ou enviar outra política.
+
+### Identidade visual e logotipo
+
+- As cores da marca ficam no início de `public/styles.css` (`--cimed-yellow`, `--cimed-navy` etc.) e no início do CSS do relatório em `public/shared/html-exporter.js`. Ajuste os códigos conforme o manual de marca oficial, se necessário.
+- **Logotipo oficial:** coloque o arquivo em `public/brand/logo.svg` (ou `logo.png`). Ele aparece automaticamente no cabeçalho e é incorporado ao relatório HTML. Sem o arquivo, é exibido o nome “Cimed” em texto. Use apenas o arquivo fornecido por Marketing/Comunicação.
 
 ## 6. Formatos aceitos
 
@@ -128,7 +135,7 @@ Arquivos `.doc` (Word antigo) devem ser salvos como `.docx` antes do envio.
 
 ## 7. Relatório HTML e política revisada (.docx)
 
-**Baixar Relatório em HTML** gera um arquivo único, com CSS incorporado e **sem JavaScript ou arquivos externos**. Ele pode ser enviado por e-mail e aberto em qualquer navegador, em outro computador, sem instalar nada. Conteúdo: identificação do documento, data da análise, resumo executivo (com validação da estrutura mínima), política revisada, DE/PARA, duplicidades, conceitos, papéis e responsabilidades, ambiguidades, riscos, questionamentos e governança/controles internos. O relatório é gerado no próprio navegador. Para PDF, abra o HTML e use “Imprimir → Salvar como PDF” (o layout de impressão já está preparado).
+**Baixar Relatório em HTML** gera um arquivo único, com CSS incorporado e **sem JavaScript ou arquivos externos**. Ele pode ser enviado por e-mail e aberto em qualquer navegador, em outro computador, sem instalar nada. O relatório tem o mesmo **menu lateral por tema** da ferramenta: ao abrir, aparece o Resumo Executivo; cada item do menu mostra somente aquele tema. Temas: Resumo Executivo (identificação do documento, data, totais e estrutura mínima), Política Revisada, DE/PARA, Duplicidades, Conceitos, Papéis e Responsabilidades, Ambiguidades, Riscos de Interpretação, Questionamentos para a Área, Governança e Controles Internos e Todos os Apontamentos. Ao **imprimir** (ou “Salvar como PDF”), todos os temas saem em sequência, cada um em nova página.
 
 **Baixar Política Revisada (.docx)** gera a política com a estrutura original e as alterações **destacadas por formatação**:
 
@@ -198,12 +205,14 @@ Recomendações para uso contínuo:
 
 ```text
 ├── public/                     # Interface (servida ao navegador)
-│   ├── index.html              # Estrutura das telas
-│   ├── styles.css              # Visual
-│   ├── app.js                  # Fluxo: upload, revisão, abas, filtros, downloads
+│   ├── index.html              # Estrutura: cabeçalho, menu lateral e telas
+│   ├── styles.css              # Visual (identidade Cimed)
+│   ├── app.js                  # Fluxo: upload, revisão, menu por tema, filtros, downloads
 │   ├── favicon.svg
+│   ├── brand/                  # Coloque aqui o logotipo oficial (logo.svg / logo.png)
 │   └── shared/                 # Módulos usados pelo navegador E pelo servidor
 │       ├── labels.js           # Categorias e rótulos (regras de negócio configuráveis)
+│       ├── themes.js           # Temas do menu (nome, ordem e descrição)
 │       ├── findings.js         # Consolidação de apontamentos, filtros, política revisada
 │       ├── render.js           # Componentes visuais (abas e relatório)
 │       ├── text-diff.js        # Comparação palavra a palavra (destaques)
@@ -213,12 +222,11 @@ Recomendações para uso contínuo:
 │   ├── prompt.js               # PROMPT DO REVISOR (regras de revisão)
 │   ├── schema.js               # Schema JSON do retorno da IA + validação
 │   ├── reviewer.js             # Chamada à API da Anthropic (streaming)
-│   ├── demo-reviewer.js        # Revisão simulada (modo demonstração)
+│   ├── demo-reviewer.js        # Revisão simulada usada apenas nos testes (DEMO_MODE=true)
 │   ├── document-parser.js      # Leitura de .docx, .txt, .md e .pdf
 │   └── docx-exporter.js        # Geração da política revisada em .docx
-├── samples/                    # Políticas de exemplo para testes
-├── scripts/generate-samples.js
 ├── test/                       # Testes automatizados (npm test)
+│   └── fixtures/               # Documentos usados somente pelos testes
 ├── .env.example                # Modelo de configuração
 ├── package.json
 └── README.md
@@ -230,7 +238,7 @@ Rotas do servidor:
 
 | Rota | Função |
 |---|---|
-| `GET /api/status` | Informa modo (IA/demonstração), modelo e limites (sem segredos). |
+| `GET /api/status` | Informa se a IA está configurada, modelo e limites (sem segredos). |
 | `POST /api/parse` | Recebe o arquivo e devolve a estrutura do documento. |
 | `POST /api/review` | Executa a revisão; devolve progresso e resultado em streaming (NDJSON). |
 | `POST /api/export/docx` | Gera a política revisada em .docx. |
@@ -252,7 +260,6 @@ Cobre: leitura de .docx (numeração, listas, tabelas), .md e .txt; erros de upl
 - `.pdf`: estrutura aproximada; PDFs digitalizados não são lidos (não há OCR).
 - O .docx revisado **não** usa o “Controlar Alterações” nativo do Word; a formatação original (fontes, cores, cabeçalho, logotipo) não é copiada, apenas a estrutura e o texto.
 - Os resultados não ficam salvos na ferramenta (por decisão de confidencialidade).
-- O modo demonstração usa regras simples e produz apontamentos limitados.
 
 ## 14. Solução de problemas
 

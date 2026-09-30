@@ -10,9 +10,7 @@
   },
   "scripts": {
     "start": "node server/server.js",
-    "demo": "node server/server.js --demo",
-    "test": "node --test test/*.test.js",
-    "samples": "node scripts/generate-samples.js"
+    "test": "node --test test/*.test.js"
   },
   "license": "UNLICENSED",
   "dependencies": {

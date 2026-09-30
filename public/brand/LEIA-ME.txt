@@ -1,0 +1,8 @@
+Logotipo oficial (opcional)
+
+Coloque aqui o arquivo do logotipo oficial da Cimed com um destes nomes:
+  logo.svg  (preferencial)   ou   logo.png / logo.jpg / logo.webp
+
+A ferramenta usa o arquivo automaticamente no cabeçalho e o incorpora ao
+relatório HTML exportado. Sem o arquivo, é exibido o nome "Cimed" em texto.
+Use somente o arquivo fornecido pela área de Marketing/Comunicação.

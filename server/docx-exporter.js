@@ -105,7 +105,7 @@ export async function buildRevisedDocx({ document: doc, review, meta = {} }) {
   const intro = [
     new Paragraph({
       shading: { type: ShadingType.CLEAR, fill: 'EEF2F6', color: 'auto' },
-      border: { left: { style: BorderStyle.SINGLE, size: 12, color: '1F3A5F', space: 6 } },
+      border: { left: { style: BorderStyle.SINGLE, size: 18, color: 'FFD100', space: 6 } },
       children: [
         new TextRun({ text: 'Versão revisada com alterações destacadas', bold: true, break: 0 }),
         new TextRun({ text: `Documento: ${doc.fileName} · Revisão gerada em ${dateFmt} pelo Revisor Inteligente de Políticas.`, break: 1 }),

@@ -3,123 +3,136 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Revisor Inteligente de Políticas</title>
+  <title>Revisor Inteligente de Políticas · Cimed</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">
-        <svg class="brand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15a0 0 0 0 1 0 0H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5M8 12h8M8 16h8M8 8h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <div>
-          <div class="brand-title">Revisor Inteligente de Políticas</div>
-          <div class="brand-sub">Controles Internos · Governança · Riscos</div>
-        </div>
+    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="sidebar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="brand">
+      <img id="brand-logo" class="brand-logo" alt="Cimed" hidden>
+      <span id="brand-wordmark" class="brand-wordmark">Cimed</span>
+      <span class="brand-divider" aria-hidden="true"></span>
+      <div>
+        <div class="brand-title">Revisor Inteligente de Políticas</div>
+        <div class="brand-sub">Controles Internos · Governança · Riscos</div>
       </div>
-      <div id="server-status" class="status-pill" hidden></div>
     </div>
+    <div id="server-status" class="status-pill" hidden></div>
   </header>
 
-  <nav class="stepper" aria-label="Etapas">
-    <ol>
-      <li data-step="upload" class="active"><span>1</span> Inserir documento</li>
-      <li data-step="review"><span>2</span> Revisão</li>
-      <li data-step="results"><span>3</span> Resultados</li>
-    </ol>
-  </nav>
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <nav aria-label="Menu principal">
+        <div class="menu-group">
+          <div class="menu-heading">Revisão</div>
+          <button type="button" class="menu-item" data-view="enviar">
+            <span class="menu-ico" aria-hidden="true">⤒</span>Enviar política
+          </button>
+        </div>
+        <div class="menu-group" id="menu-resultado">
+          <div class="menu-heading">Resultado da revisão</div>
+          <div id="menu-results"></div>
+          <p class="menu-empty" id="menu-empty">Os temas ficam disponíveis após a revisão da política.</p>
+        </div>
+        <div class="menu-group" id="menu-exportar" hidden>
+          <div class="menu-heading">Exportar</div>
+          <button type="button" class="menu-item" id="btn-html"><span class="menu-ico" aria-hidden="true">⭳</span>Baixar Relatório em HTML</button>
+          <button type="button" class="menu-item" id="btn-docx"><span class="menu-ico" aria-hidden="true">⭳</span>Baixar Política Revisada (.docx)</button>
+        </div>
+      </nav>
+    </aside>
 
-  <main class="container">
-    <div id="global-error" class="alert alert-error" role="alert" hidden></div>
+    <main class="content" id="content">
+      <div id="global-error" class="alert alert-error" role="alert" hidden></div>
 
-    <!-- ETAPA 1 -->
-    <section id="step-upload" class="step">
-      <label id="dropzone" class="dropzone" for="file-input">
-        <input id="file-input" type="file" accept=".docx,.txt,.md,.pdf" hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <strong>Envie a política que deseja revisar</strong>
-        <span>Arraste o arquivo para cá ou clique para selecionar</span>
-        <span class="muted" id="format-hint">Formatos aceitos: .docx (recomendado), .txt, .md e .pdf</span>
-      </label>
-      <p class="privacy-note">O arquivo é processado em memória e não é armazenado pela ferramenta. O conteúdo é enviado ao serviço de IA configurado apenas quando você clicar em “Iniciar revisão”.</p>
+      <!-- ENVIAR POLÍTICA -->
+      <section id="view-enviar" class="view">
+        <h1 class="view-title">Enviar política</h1>
+        <p class="view-intro">Envie a política que deseja revisar. A ferramenta identifica a estrutura do documento (títulos, numeração, listas e tabelas) e, ao iniciar a revisão, analisa o conteúdo com inteligência artificial.</p>
 
-      <div id="file-card" class="file-card" hidden>
-        <div class="file-card-main">
-          <div class="file-icon" id="file-format-icon">DOCX</div>
-          <div class="file-info">
-            <div class="file-name" id="file-name"></div>
-            <div class="file-meta">
-              <span>Formato: <strong id="file-format"></strong></span>
-              <span>Status da leitura: <strong id="file-status"></strong></span>
+        <label id="dropzone" class="dropzone" for="file-input">
+          <input id="file-input" type="file" accept=".docx,.txt,.md,.pdf" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <strong>Envie a política que deseja revisar</strong>
+          <span>Arraste o arquivo para cá ou clique para selecionar</span>
+          <span class="muted" id="format-hint">Formatos aceitos: .docx (recomendado), .txt, .md e .pdf</span>
+        </label>
+        <p class="privacy-note">O arquivo é processado em memória e não é armazenado pela ferramenta. O conteúdo é enviado ao serviço de IA apenas quando você clicar em “Iniciar revisão”.</p>
+
+        <div id="file-card" class="file-card" hidden>
+          <div class="file-card-main">
+            <div class="file-icon" id="file-format-icon">DOCX</div>
+            <div class="file-info">
+              <div class="file-name" id="file-name"></div>
+              <div class="file-meta">
+                <span>Formato: <strong id="file-format"></strong></span>
+                <span>Status da leitura: <strong id="file-status"></strong></span>
+              </div>
+              <div class="file-stats muted" id="file-stats"></div>
             </div>
-            <div class="file-stats muted" id="file-stats"></div>
+            <div class="file-actions">
+              <button type="button" class="btn btn-secondary" id="btn-replace">Substituir arquivo</button>
+              <button type="button" class="btn btn-primary" id="btn-start" disabled>Iniciar revisão</button>
+            </div>
           </div>
-          <div class="file-actions">
-            <button type="button" class="btn btn-secondary" id="btn-replace">Substituir arquivo</button>
-            <button type="button" class="btn btn-primary" id="btn-start" disabled>Iniciar revisão</button>
+          <ul id="file-warnings" class="warnings" hidden></ul>
+        </div>
+
+        <details id="preview" class="preview" hidden>
+          <summary>Visualizar documento carregado <span class="muted">(estrutura identificada)</span></summary>
+          <div id="preview-body" class="preview-body"></div>
+        </details>
+      </section>
+
+      <!-- REVISÃO EM ANDAMENTO -->
+      <section id="view-progresso" class="view" hidden>
+        <h1 class="view-title">Revisão em andamento</h1>
+        <div class="progress-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>
+            <p class="progress-file" id="progress-file"></p>
+            <p id="progress-phase">Enviando documento para análise…</p>
+            <p class="muted"><span id="progress-elapsed">0:00</span> decorridos · <span id="progress-chars">aguardando retorno</span></p>
+            <p class="muted small">A revisão completa pode levar alguns minutos, dependendo do tamanho da política. Mantenha esta página aberta.</p>
           </div>
+          <button type="button" class="btn btn-secondary" id="btn-cancel">Cancelar</button>
         </div>
-        <ul id="file-warnings" class="warnings" hidden></ul>
-      </div>
+      </section>
 
-      <details id="preview" class="preview" hidden>
-        <summary>Visualizar documento carregado <span class="muted">(estrutura identificada)</span></summary>
-        <div id="preview-body" class="preview-body"></div>
-      </details>
-    </section>
-
-    <!-- ETAPA 2 -->
-    <section id="step-review" class="step" hidden>
-      <div class="progress-card">
-        <div class="spinner" aria-hidden="true"></div>
-        <div>
-          <h2>Revisão em andamento</h2>
-          <p id="progress-phase">Enviando documento para análise…</p>
-          <p class="muted"><span id="progress-elapsed">0:00</span> decorridos · <span id="progress-chars">aguardando retorno</span></p>
-          <p class="muted small">A revisão completa pode levar alguns minutos, dependendo do tamanho da política. Mantenha esta página aberta.</p>
+      <!-- TEMAS DO RESULTADO (um por vez) -->
+      <section id="view-resultado" class="view" hidden>
+        <div class="doc-strip">
+          <span class="doc-strip-name" id="results-title"></span>
+          <span class="muted" id="results-meta"></span>
         </div>
-        <button type="button" class="btn btn-secondary" id="btn-cancel">Cancelar</button>
-      </div>
-    </section>
+        <div id="validation-notice" class="alert alert-warn" hidden></div>
 
-    <!-- ETAPA 3 -->
-    <section id="step-results" class="step" hidden>
-      <div class="results-head">
-        <div>
-          <h1 id="results-title">Resultado da revisão</h1>
-          <div class="muted" id="results-meta"></div>
+        <h1 class="view-title" id="theme-title"></h1>
+        <p class="view-intro" id="theme-intro"></p>
+
+        <div class="filters" id="filters" role="search">
+          <input type="search" id="f-busca" placeholder="Pesquisar neste tema…" aria-label="Pesquisa textual">
+          <select id="f-secao" aria-label="Seção da política"><option value="">Todas as seções</option></select>
+          <select id="f-classificacao" aria-label="Classificação">
+            <option value="">Todas as classificações</option>
+            <option value="editorial">Ajuste editorial</option>
+            <option value="validacao">Requer validação</option>
+          </select>
+          <select id="f-categoria" aria-label="Categoria"><option value="">Todas as categorias</option></select>
+          <select id="f-tipo" aria-label="Tipo de apontamento"><option value="">Todos os tipos</option></select>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-clear">Limpar filtros</button>
+          <span id="filter-count" class="muted small"></span>
         </div>
-        <div class="results-actions">
-          <button type="button" class="btn btn-primary" id="btn-html">Baixar Relatório em HTML</button>
-          <button type="button" class="btn btn-secondary" id="btn-docx">Baixar Política Revisada (.docx)</button>
-          <button type="button" class="btn btn-ghost" id="btn-new">Nova revisão</button>
-        </div>
-      </div>
-      <div id="demo-banner" class="alert alert-alert" hidden>MODO DEMONSTRAÇÃO – resultado simulado por regras simples, sem IA. Use apenas para conhecer a ferramenta.</div>
-      <div id="validation-notice" class="alert alert-warn" hidden></div>
 
-      <div id="cards"></div>
-
-      <div class="filters" role="search">
-        <input type="search" id="f-busca" placeholder="Pesquisar nos apontamentos…" aria-label="Pesquisa textual">
-        <select id="f-secao" aria-label="Seção da política"><option value="">Todas as seções</option></select>
-        <select id="f-classificacao" aria-label="Classificação">
-          <option value="">Todas as classificações</option>
-          <option value="editorial">Ajuste editorial</option>
-          <option value="validacao">Requer validação</option>
-        </select>
-        <select id="f-categoria" aria-label="Categoria"><option value="">Todas as categorias</option></select>
-        <select id="f-tipo" aria-label="Tipo de apontamento"><option value="">Todos os tipos</option></select>
-        <button type="button" class="btn btn-ghost btn-sm" id="btn-clear">Limpar filtros</button>
-        <span id="filter-count" class="muted small"></span>
-      </div>
-
-      <div class="tabs" role="tablist" id="tabs"></div>
-      <div id="tab-panel" class="tab-panel" role="tabpanel" tabindex="0"></div>
-    </section>
-  </main>
-
-  <footer class="footer">Revisor Inteligente de Políticas · as sugestões da IA devem ser validadas pela área responsável antes da publicação.</footer>
+        <div id="theme-body" class="theme-body" tabindex="-1"></div>
+      </section>
+    </main>
+  </div>
+  <div class="scrim" id="scrim" hidden></div>
 </body>
 </html>

@@ -17,7 +17,7 @@ import { buildRevisedPolicy, unifyFindings, countFindings, buildSectionIndex, ma
 import { diffWords } from '../public/shared/text-diff.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const sample = (f) => fs.readFileSync(path.join(root, 'samples', f));
+const sample = (f) => fs.readFileSync(path.join(root, 'test', 'fixtures', f));
 
 test('lê .docx preservando numeração automática, listas e tabelas', async () => {
   const doc = await parseDocument(sample('politica-gestao-acessos.docx'), 'p.docx');
@@ -132,9 +132,14 @@ test('relatório HTML é autocontido e escapa conteúdo', async () => {
   assert.ok(!/<script/i.test(html), 'não deve conter scripts');
   assert.ok(!/<link\s/i.test(html) && !/src=["']http/i.test(html), 'não deve depender de arquivos externos');
   assert.ok(html.includes('&lt;script&gt;'));
-  for (const s of ['Resumo executivo', 'Política revisada', 'Tabela DE/PARA', 'Duplicidades', 'Análise de conceitos', 'Papéis e Responsabilidades', 'Ambiguidades', 'Riscos de interpretação', 'Questionamentos para validação da área', 'Governança e Controles Internos']) {
-    assert.ok(html.includes(s), `seção ausente: ${s}`);
+  for (const s of ['Resumo Executivo', 'Política Revisada', 'DE/PARA', 'Duplicidades', 'Conceitos', 'Papéis e Responsabilidades', 'Ambiguidades', 'Riscos de Interpretação', 'Questionamentos para a Área', 'Governança e Controles Internos', 'Todos os Apontamentos']) {
+    assert.ok(html.includes(s), `tema ausente: ${s}`);
   }
+  // Cada tema é uma tela própria acessada pelo menu (âncoras + :target).
+  for (const id of ['resumo', 'politica', 'depara', 'duplicidades', 'conceitos', 'responsabilidades', 'ambiguidades', 'riscos', 'questionamentos', 'governanca', 'todos']) {
+    assert.ok(html.includes(`href="#${id}"`) && html.includes(`<section id="${id}" class="theme">`), `menu/tela ausente: ${id}`);
+  }
+  assert.ok(html.includes('.theme:target{display:block}'));
 });
 
 test('exporta .docx válido e reabrível', async () => {

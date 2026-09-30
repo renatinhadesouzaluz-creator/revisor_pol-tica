@@ -1,5 +1,5 @@
-// Gera políticas de exemplo em samples/ para testes e demonstração.
-// Uso: npm run samples
+// Gera as políticas usadas pelos testes automatizados (test/fixtures).
+// Uso: node test/fixtures/generate-fixtures.js
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,7 +10,7 @@ import {
 } from 'docx';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const outDir = path.join(here, '..', 'samples');
+const outDir = here;
 fs.mkdirSync(outDir, { recursive: true });
 
 // Política completa com problemas propositais (tempo verbal, ambiguidades,

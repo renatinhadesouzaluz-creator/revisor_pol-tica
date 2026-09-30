@@ -89,17 +89,17 @@ export function renderEstrutura(e) {
   const objetivoLabel = { sim: 'Adequado', parcial: 'Parcialmente adequado', nao: 'Requer ajuste' };
   return `
     <div class="panel"><h3>Validação da estrutura mínima</h3>
-      <table class="tbl"><thead><tr><th>Seção</th><th>Situação</th><th>Localização</th><th>Observação</th></tr></thead><tbody>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Seção</th><th>Situação</th><th>Localização</th><th>Observação</th></tr></thead><tbody>
       ${e.secoes
         .map((s) => `<tr><td>${esc(SECOES_OBRIGATORIAS[s.secao] ?? s.secao)}</td><td>${badge(statusLabel[s.presente] ?? s.presente, kind[s.presente] ?? 'neutral')}</td><td>${esc(s.localizacao)}</td><td>${esc(s.observacao)}</td></tr>`)
         .join('')}
-      </tbody></table>
+      </tbody></table></div>
       <h4>É possível compreender a política a partir dessas seções?</h4>
-      <table class="tbl"><thead><tr><th>Pergunta</th><th>Resposta</th><th>Comentário</th></tr></thead><tbody>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pergunta</th><th>Resposta</th><th>Comentário</th></tr></thead><tbody>
       ${e.perguntasEssenciais
         .map((p) => `<tr><td>${esc(p.pergunta)}</td><td>${badge(RESPOSTA_PERGUNTA[p.resposta] ?? p.resposta, kind[p.resposta] ?? 'neutral')}</td><td>${esc(p.comentario)}</td></tr>`)
         .join('')}
-      </tbody></table>
+      </tbody></table></div>
       <h4>Análise do Objetivo</h4>
       <p>${badge(objetivoLabel[e.analiseObjetivo.adequado] ?? e.analiseObjetivo.adequado, kind[e.analiseObjetivo.adequado] ?? 'neutral')} ${esc(e.analiseObjetivo.comentario)}</p>
     </div>`;

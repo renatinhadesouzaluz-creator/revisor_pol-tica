@@ -2,6 +2,7 @@
 // Nenhuma chave de API existe aqui: toda chamada à IA passa pelo servidor.
 
 import { CATEGORIAS, TIPOS_APONTAMENTO } from './shared/labels.js';
+import { THEMES } from './shared/themes.js';
 import { unifyFindings, countFindings, buildSectionIndex, matchesFilters, buildRevisedPolicy } from './shared/findings.js';
 import {
   esc, renderCards, renderResumo, renderLegend, renderRevisedPolicy, renderDePara, renderDuplicidades, renderConceitos,
@@ -11,15 +12,18 @@ import { buildHtmlReport, reportFileName } from './shared/html-exporter.js';
 
 const $ = (id) => document.getElementById(id);
 const ACCEPTED = ['docx', 'txt', 'md', 'pdf'];
+const LOGO_CANDIDATES = ['brand/logo.svg', 'brand/logo.png', 'brand/logo.jpg', 'brand/logo.webp'];
 
 const state = {
   server: { limiteUploadMb: 10 },
+  logo: null, // { src, dataUrl } quando existir logotipo em public/brand/
   document: null,
   review: null,
   meta: null,
   unified: [],
   sectionIndex: null,
-  activeTab: 'resumo',
+  view: 'enviar',
+  theme: 'resumo',
   onlyChanged: false,
   filters: { busca: '', secao: '', classificacao: '', categoria: '', tipo: '' },
   controller: null,
@@ -31,22 +35,25 @@ const state = {
 init();
 
 async function init() {
+  bindMenu();
   bindUpload();
-  bindResults();
+  bindFilters();
+  loadLogo();
+  renderMenu();
   try {
     const res = await fetch('api/status');
     state.server = await res.json();
     const pill = $('server-status');
     pill.hidden = false;
     if (state.server.demo) {
-      pill.textContent = 'Modo demonstração';
-      pill.className = 'status-pill status-demo';
+      pill.textContent = 'Modo de teste (sem IA)';
+      pill.className = 'status-pill status-error';
     } else if (!state.server.apiConfigurada) {
       pill.textContent = 'IA não configurada';
       pill.className = 'status-pill status-error';
-      showError('A chave da API não está configurada no servidor. Consulte o README (seção “Configurar a API”) ou execute em modo demonstração.');
+      showError('A chave da API não está configurada no servidor. Consulte o README (seção “Configurar a API”).');
     } else {
-      pill.textContent = `IA: ${state.server.modelo}`;
+      pill.textContent = `IA ativa · ${state.server.modelo}`;
       pill.className = 'status-pill';
     }
     $('format-hint').textContent = `Formatos aceitos: .docx (recomendado), .txt, .md e .pdf · até ${state.server.limiteUploadMb} MB`;
@@ -58,15 +65,27 @@ async function init() {
   });
 }
 
-function showStep(step) {
-  for (const s of ['upload', 'review', 'results']) $(`step-${s}`).hidden = s !== step;
-  const order = ['upload', 'review', 'results'];
-  document.querySelectorAll('.stepper li').forEach((li) => {
-    const i = order.indexOf(li.dataset.step);
-    li.classList.toggle('active', li.dataset.step === step);
-    li.classList.toggle('done', i < order.indexOf(step));
-  });
-  window.scrollTo({ top: 0 });
+// Logotipo oficial opcional: coloque o arquivo em public/brand/logo.svg (ou .png).
+async function loadLogo() {
+  for (const src of LOGO_CANDIDATES) {
+    try {
+      const res = await fetch(src, { cache: 'no-store' });
+      if (!res.ok || !/^image\//.test(res.headers.get('content-type') ?? '')) continue;
+      const blob = await res.blob();
+      const dataUrl = await new Promise((resolve) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.readAsDataURL(blob);
+      });
+      state.logo = { src, dataUrl };
+      $('brand-logo').src = dataUrl;
+      $('brand-logo').hidden = false;
+      $('brand-wordmark').hidden = true;
+      return;
+    } catch {
+      /* tenta o próximo */
+    }
+  }
 }
 
 function showError(message) {
@@ -76,7 +95,82 @@ function showError(message) {
 }
 
 // ---------------------------------------------------------------------------
-// Etapa 1 – Upload e leitura
+// Menu lateral: cada tema tem sua própria tela
+// ---------------------------------------------------------------------------
+function bindMenu() {
+  $('sidebar').addEventListener('click', (e) => {
+    const item = e.target.closest('[data-view], [data-theme]');
+    if (!item || item.disabled) return;
+    if (item.dataset.view === 'enviar') {
+      if (state.controller) return;
+      go('enviar');
+    } else if (item.dataset.theme) {
+      state.theme = item.dataset.theme;
+      go('resultado');
+    }
+    closeMobileMenu();
+  });
+  $('menu-toggle').addEventListener('click', () => {
+    const open = !document.body.classList.contains('menu-open');
+    document.body.classList.toggle('menu-open', open);
+    $('menu-toggle').setAttribute('aria-expanded', String(open));
+    $('scrim').hidden = !open;
+  });
+  $('scrim').addEventListener('click', closeMobileMenu);
+  $('btn-html').addEventListener('click', downloadHtml);
+  $('btn-docx').addEventListener('click', downloadDocx);
+  $('theme-body').addEventListener('click', (e) => {
+    const goBtn = e.target.closest('[data-goto]');
+    if (goBtn) gotoBlock(goBtn.dataset.goto);
+  });
+  $('theme-body').addEventListener('change', (e) => {
+    if (e.target.id === 'only-changed') {
+      state.onlyChanged = e.target.checked;
+      renderTheme();
+    }
+  });
+}
+
+function closeMobileMenu() {
+  document.body.classList.remove('menu-open');
+  $('menu-toggle').setAttribute('aria-expanded', 'false');
+  $('scrim').hidden = true;
+}
+
+function go(view) {
+  state.view = view;
+  $('view-enviar').hidden = view !== 'enviar';
+  $('view-progresso').hidden = view !== 'progresso';
+  $('view-resultado').hidden = view !== 'resultado';
+  if (view === 'resultado') renderTheme();
+  renderMenu();
+  window.scrollTo({ top: 0 });
+  $('content').scrollTop = 0;
+}
+
+function renderMenu() {
+  const hasResult = Boolean(state.review);
+  $('menu-empty').hidden = hasResult;
+  $('menu-exportar').hidden = !hasResult;
+  document.querySelector('[data-view="enviar"]').classList.toggle('active', state.view === 'enviar' || state.view === 'progresso');
+  if (!hasResult) {
+    $('menu-results').innerHTML = '';
+    return;
+  }
+  $('menu-results').innerHTML = THEMES.map((t) => {
+    const n = t.tipos === undefined ? '' : `<span class="menu-count">${countTheme(t)}</span>`;
+    const active = state.view === 'resultado' && state.theme === t.id;
+    return `<button type="button" class="menu-item${active ? ' active' : ''}" data-theme="${t.id}"${active ? ' aria-current="page"' : ''}><span class="menu-label">${esc(t.label)}</span>${n}</button>`;
+  }).join('');
+}
+
+function itemsOf(tipos) {
+  return tipos === null ? state.unified : state.unified.filter((f) => tipos.includes(f.tipo));
+}
+const countTheme = (t) => itemsOf(t.tipos).length;
+
+// ---------------------------------------------------------------------------
+// Enviar política – upload e leitura
 // ---------------------------------------------------------------------------
 function bindUpload() {
   const input = $('file-input');
@@ -109,8 +203,10 @@ function setFileStatus(text, kind) {
 }
 
 async function loadFile(file) {
+  if (state.review && !confirm('Enviar uma nova política? O resultado atual será descartado (baixe o relatório antes, se necessário).')) return;
   showError('');
   state.document = null;
+  clearResult();
   $('btn-start').disabled = true;
   $('preview').hidden = true;
   $('file-warnings').hidden = true;
@@ -160,6 +256,13 @@ async function loadFile(file) {
   }
 }
 
+function clearResult() {
+  state.review = null;
+  state.meta = null;
+  state.unified = [];
+  renderMenu();
+}
+
 function toBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -170,7 +273,7 @@ function toBase64(file) {
 }
 
 // ---------------------------------------------------------------------------
-// Etapa 2 – Revisão (streaming de progresso)
+// Revisão (streaming de progresso)
 // ---------------------------------------------------------------------------
 const PHASES = {
   start: 'Documento enviado. A IA está lendo a política…',
@@ -182,15 +285,17 @@ const PHASES = {
 async function startReview() {
   if (!state.document) return;
   showError('');
-  showStep('review');
+  $('progress-file').textContent = state.document.fileName;
   $('progress-phase').textContent = 'Enviando documento para análise…';
   $('progress-chars').textContent = 'aguardando retorno';
+  $('progress-elapsed').textContent = '0:00';
+  state.controller = new AbortController();
+  go('progresso');
   const started = Date.now();
   const timer = setInterval(() => {
     const s = Math.floor((Date.now() - started) / 1000);
     $('progress-elapsed').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }, 1000);
-  state.controller = new AbortController();
 
   try {
     const res = await fetch('api/review', {
@@ -206,14 +311,16 @@ async function startReview() {
     const result = await readNdjson(res.body);
     state.review = result.review;
     state.meta = result.meta;
-    renderResults();
-    showStep('results');
+    prepareResult();
+    state.theme = 'resumo';
+    state.controller = null;
+    go('resultado');
   } catch (err) {
-    showStep('upload');
+    state.controller = null;
+    go('enviar');
     showError(err.name === 'AbortError' ? 'Revisão cancelada.' : err.message);
   } finally {
     clearInterval(timer);
-    state.controller = null;
   }
 }
 
@@ -242,135 +349,75 @@ async function readNdjson(body) {
 }
 
 // ---------------------------------------------------------------------------
-// Etapa 3 – Resultados
+// Resultado: um tema por tela
 // ---------------------------------------------------------------------------
-const TABS = [
-  ['resumo', 'Resumo Executivo'],
-  ['politica', 'Política Revisada'],
-  ['depara', 'DE/PARA', 'alteracao'],
-  ['duplicidades', 'Duplicidades', 'duplicidade'],
-  ['conceitos', 'Conceitos', 'conceito'],
-  ['responsabilidades', 'Papéis e Responsabilidades', 'responsabilidade'],
-  ['ambiguidades', 'Ambiguidades e Riscos', ['ambiguidade', 'risco']],
-  ['questionamentos', 'Questionamentos para a Área', 'questionamento'],
-  ['governanca', 'Governança e Controles Internos', 'governanca'],
-  ['todos', 'Todos os apontamentos', null],
-];
-
-function bindResults() {
+function bindFilters() {
   const f = state.filters;
   $('f-busca').addEventListener('input', (e) => {
     f.busca = e.target.value.trim();
-    renderTab();
+    renderTheme();
+    renderMenu();
   });
   for (const key of ['secao', 'classificacao', 'categoria', 'tipo']) {
     $(`f-${key}`).addEventListener('change', (e) => {
       f[key] = e.target.value;
-      renderTab();
+      renderTheme();
     });
   }
   $('btn-clear').addEventListener('click', () => {
-    Object.assign(f, { busca: '', secao: '', classificacao: '', categoria: '', tipo: '' });
-    for (const key of ['busca', 'secao', 'classificacao', 'categoria', 'tipo']) $(`f-${key}`).value = '';
-    renderTab();
+    resetFilters();
+    renderTheme();
   });
   $('f-categoria').innerHTML += CATEGORIAS.map((c) => `<option>${esc(c)}</option>`).join('');
   $('f-tipo').innerHTML += Object.entries(TIPOS_APONTAMENTO).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
-
-  $('tabs').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-tab]');
-    if (btn) selectTab(btn.dataset.tab);
-  });
-  $('tabs').addEventListener('keydown', (e) => {
-    if (!['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
-    const i = TABS.findIndex(([id]) => id === state.activeTab);
-    const next = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length][0];
-    selectTab(next);
-    $('tabs').querySelector(`[data-tab="${next}"]`)?.focus();
-  });
-  $('tab-panel').addEventListener('click', (e) => {
-    const go = e.target.closest('[data-goto]');
-    if (go) gotoBlock(go.dataset.goto);
-  });
-  $('tab-panel').addEventListener('change', (e) => {
-    if (e.target.id === 'only-changed') {
-      state.onlyChanged = e.target.checked;
-      renderTab();
-    }
-  });
-
-  $('btn-html').addEventListener('click', downloadHtml);
-  $('btn-docx').addEventListener('click', downloadDocx);
-  $('btn-new').addEventListener('click', () => {
-    if (!confirm('Iniciar nova revisão? Os resultados atuais serão descartados (baixe o relatório antes, se necessário).')) return;
-    state.review = null;
-    state.meta = null;
-    showStep('upload');
-  });
 }
 
-function renderResults() {
+function resetFilters() {
+  Object.assign(state.filters, { busca: '', secao: '', classificacao: '', categoria: '', tipo: '' });
+  for (const key of ['busca', 'secao', 'classificacao', 'categoria', 'tipo']) $(`f-${key}`).value = '';
+}
+
+function prepareResult() {
   const { review, meta, document: doc } = state;
   state.unified = unifyFindings(review);
   state.sectionIndex = buildSectionIndex(doc.blocks);
-  const counts = countFindings(review, state.unified);
-
   $('results-title').textContent = doc.fileName;
   $('results-meta').textContent = `Análise de ${new Date(meta.date).toLocaleString('pt-BR')} · ${meta.modelo}`;
-  $('demo-banner').hidden = !meta.demo;
   const adj = meta.ajustesValidacao ?? [];
   $('validation-notice').hidden = !adj.length;
   $('validation-notice').textContent = adj.length
     ? `A resposta da IA teve ${adj.length} ajuste(s) de formato na validação automática. Os apontamentos afetados podem estar incompletos; confira-os no DE/PARA.`
     : '';
-  $('cards').innerHTML = renderCards(counts);
   $('f-secao').innerHTML =
     '<option value="">Todas as seções</option>' + state.sectionIndex.sections.map((s) => `<option value="${esc(s.key)}">${esc(s.label)}</option>`).join('');
-  state.filters.secao = '';
-  state.activeTab = 'resumo';
-  renderTab();
+  resetFilters();
 }
 
-function selectTab(id) {
-  state.activeTab = id;
-  renderTab();
-}
+function renderTheme() {
+  if (!state.review) return;
+  const theme = THEMES.find((t) => t.id === state.theme) ?? THEMES[0];
+  const r = state.review;
+  const filterable = theme.tipos !== undefined;
+  $('theme-title').textContent = theme.label;
+  $('theme-intro').textContent = theme.intro;
+  $('filters').hidden = !filterable;
+  $('f-categoria').hidden = !['depara', 'todos'].includes(theme.id);
+  $('f-tipo').hidden = theme.id !== 'todos';
 
-function filtered(tipos) {
-  const list = tipos === null ? state.unified : state.unified.filter((f) => [].concat(tipos).includes(f.tipo));
-  return list.filter((f) => matchesFilters(f, state.filters, state.sectionIndex));
-}
-
-function renderTab() {
-  const tab = state.activeTab;
-  // Contagens das abas (respeitando filtros)
-  $('tabs').innerHTML = TABS.map(([id, label, tipos]) => {
-    const n = tipos === undefined ? '' : `<span class="tab-count">${filtered(tipos).length}</span>`;
-    return `<button type="button" role="tab" data-tab="${id}" aria-selected="${id === tab}" tabindex="${id === tab ? 0 : -1}" class="tab${id === tab ? ' active' : ''}">${esc(label)}${n}</button>`;
-  }).join('');
-
-  const showFor = (el, tabs) => ($(el).hidden = !tabs.includes(tab));
-  showFor('f-categoria', ['depara', 'todos']);
-  showFor('f-tipo', ['todos']);
-  const filterable = !['resumo', 'politica'].includes(tab);
-  document.querySelector('.filters').classList.toggle('filters-disabled', !filterable);
+  const all = filterable ? itemsOf(theme.tipos) : [];
+  const items = all.filter((f) => matchesFilters(f, state.filters, state.sectionIndex));
+  $('filter-count').textContent = filterable ? `${items.length} de ${all.length} apontamento(s)` : '';
 
   const opts = { linkable: true };
-  const current = TABS.find(([id]) => id === tab);
-  const items = current[2] === undefined ? [] : filtered(current[2]);
-  const total = current[2] === undefined ? 0 : current[2] === null ? state.unified.length : state.unified.filter((f) => [].concat(current[2]).includes(f.tipo)).length;
-  $('filter-count').textContent = filterable ? `${items.length} de ${total} apontamento(s)` : 'Filtros aplicáveis às abas de apontamentos';
-
   let html = '';
-  const r = state.review;
-  switch (tab) {
+  switch (theme.id) {
     case 'resumo':
-      html = renderResumo(r, countFindings(r, state.unified));
+      html = renderCards(countFindings(r, state.unified)) + renderResumo(r, countFindings(r, state.unified));
       break;
     case 'politica': {
       let revised = buildRevisedPolicy(state.document.blocks, r);
       if (state.onlyChanged) revised = revised.filter((b) => b.status !== 'inalterado' || b.type === 'heading');
-      html = `<div class="policy-tools"><label><input type="checkbox" id="only-changed" ${state.onlyChanged ? 'checked' : ''}> Mostrar somente trechos alterados (com títulos)</label></div>${renderLegend()}${renderRevisedPolicy(revised, opts)}`;
+      html = `<div class="policy-tools"><label><input type="checkbox" id="only-changed" ${state.onlyChanged ? 'checked' : ''}> Mostrar somente trechos alterados (com títulos)</label></div>${renderLegend()}<div class="paper">${renderRevisedPolicy(revised, opts)}</div>`;
       break;
     }
     case 'depara':
@@ -386,10 +433,13 @@ function renderTab() {
       html = renderResponsabilidades(items, opts);
       break;
     case 'ambiguidades':
-      html = `<h3>Ambiguidades</h3>${renderAmbiguidades(items.filter((f) => f.tipo === 'ambiguidade'), opts)}<h3>Riscos de interpretação</h3>${renderRiscos(items.filter((f) => f.tipo === 'risco'), opts)}`;
+      html = renderAmbiguidades(items, opts);
+      break;
+    case 'riscos':
+      html = renderRiscos(items, opts);
       break;
     case 'questionamentos':
-      html = `<h2 class="panel-title">Questionamentos para validação da área</h2>${renderQuestionamentos(items, opts)}`;
+      html = renderQuestionamentos(items, opts);
       break;
     case 'governanca':
       html = renderGovernanca(items, opts);
@@ -398,12 +448,13 @@ function renderTab() {
       html = renderConsolidated(items, opts);
       break;
   }
-  $('tab-panel').innerHTML = html;
+  $('theme-body').innerHTML = html;
 }
 
 function gotoBlock(blockId) {
   state.onlyChanged = false;
-  selectTab('politica');
+  state.theme = 'politica';
+  go('resultado');
   const el = document.getElementById(`blk-${blockId}`);
   if (!el) return;
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -427,15 +478,17 @@ function downloadBlob(blob, name) {
 
 function downloadHtml() {
   // Gerado inteiramente no navegador: o relatório não passa pelo servidor.
-  const html = buildHtmlReport({ document: state.document, review: state.review, meta: state.meta });
+  const html = buildHtmlReport({
+    document: state.document,
+    review: state.review,
+    meta: { ...state.meta, logo: state.logo?.dataUrl },
+  });
   downloadBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), reportFileName(state.document.fileName, 'html'));
 }
 
 async function downloadDocx() {
   const btn = $('btn-docx');
   btn.disabled = true;
-  const label = btn.textContent;
-  btn.textContent = 'Gerando .docx…';
   try {
     const res = await fetch('api/export/docx', {
       method: 'POST',
@@ -451,6 +504,5 @@ async function downloadDocx() {
     showError(err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = label;
   }
 }
