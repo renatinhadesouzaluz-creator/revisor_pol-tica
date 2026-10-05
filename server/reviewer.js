@@ -123,7 +123,7 @@ async function callModel(api, cfg, userMessage, structured, onProgress, signal) 
     .join('');
 }
 
-function parseJson(text) {
+export function parseJson(text) {
   if (!text?.trim()) throw new ReviewError('A IA não retornou conteúdo.');
   try {
     return JSON.parse(text);

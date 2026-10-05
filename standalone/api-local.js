@@ -9,6 +9,7 @@ import { Packer } from 'docx';
 import { parseDocument } from '../server/document-parser.js';
 import { reviewDocument, config } from '../server/reviewer.js';
 import { buildRevisedDocument } from '../server/docx-exporter.js';
+import { buildManualRequest, importManualResponse } from '../server/manual-review.js';
 
 const MAX_UPLOAD_MB = 10;
 const MAX_DOC_CHARS = 300_000;
@@ -54,4 +55,17 @@ export async function runReview(document, { onProgress, signal }) {
 
 export async function exportDocx(payload) {
   return Packer.toBlob(buildRevisedDocument(payload));
+}
+
+// Modo sem API: tudo local, nada é enviado pela ferramenta.
+export async function buildManualPrompt(document) {
+  return buildManualRequest(document);
+}
+
+export async function importManualResult(document, resposta) {
+  const result = importManualResponse(resposta, document);
+  return {
+    review: result.review,
+    meta: { modelo: result.modelo, manual: true, demo: false, date: new Date().toISOString(), ajustesValidacao: result.ajustesValidacao },
+  };
 }

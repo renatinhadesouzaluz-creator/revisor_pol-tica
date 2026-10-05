@@ -89,6 +89,35 @@
           <p id="api-key-hint" class="key-hint" hidden>Informe a chave da API acima para iniciar a revisão.</p>
         </div>
 
+        <section id="manual-box" class="manual-box" hidden aria-labelledby="manual-title">
+          <h2 id="manual-title">Revisar sem chave de API, pelo claude.ai</h2>
+          <p class="muted" id="manual-intro">Use a sua conta no claude.ai: a ferramenta prepara o pedido com as regras de revisão, o formato da resposta e a política numerada; você cola no Claude e traz a resposta de volta para ver a revisão aqui.</p>
+          <ol class="manual-steps">
+            <li>
+              <strong>Copie o pedido</strong> e abra uma nova conversa no claude.ai.
+              <div class="manual-actions">
+                <button type="button" class="btn btn-primary" id="btn-copy-prompt">Copiar pedido para o Claude</button>
+                <a class="btn btn-secondary" href="https://claude.ai/new" target="_blank" rel="noopener noreferrer">Abrir o claude.ai ↗</a>
+                <span id="copy-status" class="copy-status" role="status"></span>
+              </div>
+              <details id="manual-prompt-box" class="manual-prompt">
+                <summary>Ver o pedido <span class="muted" id="manual-prompt-size"></span></summary>
+                <textarea id="manual-prompt" readonly rows="10" aria-label="Pedido para o Claude"></textarea>
+              </details>
+            </li>
+            <li><strong>Cole o pedido no claude.ai e envie.</strong> Aguarde a resposta terminar; ela vem em um bloco de código JSON. Se o Claude parar no meio, peça “continue” e junte as partes.</li>
+            <li>
+              <strong>Copie a resposta inteira do Claude</strong> (botão de copiar do bloco de código) e cole aqui:
+              <textarea id="manual-response" rows="8" spellcheck="false" placeholder="Cole aqui a resposta do Claude (o JSON completo)" aria-label="Resposta do Claude"></textarea>
+              <div class="manual-actions">
+                <button type="button" class="btn btn-primary" id="btn-import" disabled>Exibir revisão</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-clear-response" hidden>Limpar resposta</button>
+              </div>
+            </li>
+          </ol>
+          <p class="muted small">Neste modo, o texto da política só sai do seu computador quando você o cola no claude.ai, com a sua conta. Siga as orientações de Segurança da Informação para uso de documentos internos.</p>
+        </section>
+
         <details id="preview" class="preview" hidden>
           <summary>Visualizar documento carregado <span class="muted">(estrutura identificada)</span></summary>
           <div id="preview-body" class="preview-body"></div>

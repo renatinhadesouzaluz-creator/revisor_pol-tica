@@ -1,5 +1,7 @@
 // Interface do Revisor Inteligente de Políticas.
 // Nenhuma chave de API existe aqui: toda chamada à IA passa pelo servidor.
+// Sem chave, a revisão pode ser feita no claude.ai (modo sem API): a ferramenta
+// monta o pedido e lê a resposta colada de volta.
 
 import { CATEGORIAS, TIPOS_APONTAMENTO } from './shared/labels.js';
 import { THEMES } from './shared/themes.js';
@@ -28,6 +30,8 @@ const state = {
   onlyChanged: false,
   filters: { busca: '', secao: '', classificacao: '', categoria: '', tipo: '' },
   controller: null,
+  manualOnly: false, // servidor sem chave: só o modo sem API está disponível
+  manualPrompt: '',
 };
 
 // ---------------------------------------------------------------------------
@@ -39,6 +43,7 @@ async function init() {
   bindMenu();
   bindUpload();
   bindFilters();
+  bindManual();
   loadLogo();
   renderMenu();
   try {
@@ -56,13 +61,18 @@ async function init() {
       document.querySelector('.privacy-note').textContent =
         'O arquivo é lido no seu próprio navegador e não é armazenado. O conteúdo é enviado ao serviço de IA da Anthropic apenas quando você clicar em “Iniciar revisão”.';
       $('file-input').accept = '.docx,.txt,.md';
+      $('api-key-hint').textContent = 'Informe a chave da API acima para iniciar a revisão automática, ou use a revisão pelo claude.ai abaixo, que não precisa de chave.';
     } else if (state.server.demo) {
       pill.textContent = 'Modo de teste (sem IA)';
       pill.className = 'status-pill status-error';
     } else if (!state.server.apiConfigurada) {
-      pill.textContent = 'IA não configurada';
-      pill.className = 'status-pill status-error';
-      showError('A chave da API não está configurada no servidor. Consulte o README (seção “Configurar a API”).');
+      state.manualOnly = true;
+      pill.textContent = 'Modo sem API · claude.ai';
+      pill.className = 'status-pill';
+      $('btn-start').hidden = true;
+      $('manual-title').textContent = 'Revisar pelo claude.ai';
+      document.querySelector('.privacy-note').textContent =
+        'O arquivo é processado em memória e não é armazenado pela ferramenta. Esta instalação não usa chave de API: a revisão é feita por você, em uma conversa no claude.ai.';
     } else {
       pill.textContent = `IA ativa · ${state.server.modelo}`;
       pill.className = 'status-pill';
@@ -230,6 +240,7 @@ async function loadFile(file) {
   clearResult();
   $('btn-start').disabled = true;
   $('preview').hidden = true;
+  resetManual();
   $('file-warnings').hidden = true;
   const ext = file.name.toLowerCase().split('.').pop();
   $('file-card').hidden = false;
@@ -266,6 +277,7 @@ async function loadFile(file) {
     $('preview-body').innerHTML = renderRevisedPolicy(buildRevisedPolicy(data.document.blocks, { blocosRevisados: [] }));
     $('preview').hidden = false;
     updateStartButton();
+    await prepareManualPrompt();
   } catch (err) {
     setFileStatus('Erro na leitura', 'error');
     showError(err.message);
@@ -305,7 +317,7 @@ const PHASES = {
 };
 
 async function startReview() {
-  if (!state.document) return;
+  if (!state.document || state.manualOnly) return;
   showError('');
   $('progress-file').textContent = state.document.fileName;
   $('progress-phase').textContent = 'Enviando documento para análise…';
@@ -339,6 +351,93 @@ async function startReview() {
 function showProgress(evt) {
   $('progress-phase').textContent = PHASES[evt.phase] ?? PHASES.thinking;
   if (evt.chars) $('progress-chars').textContent = `${evt.chars.toLocaleString('pt-BR')} caracteres recebidos`;
+}
+
+// ---------------------------------------------------------------------------
+// Modo sem API: pedido copiado para o claude.ai e resposta colada de volta
+// ---------------------------------------------------------------------------
+function bindManual() {
+  $('btn-copy-prompt').addEventListener('click', copyManualPrompt);
+  $('manual-prompt').addEventListener('focus', (e) => e.target.select());
+  $('manual-response').addEventListener('input', (e) => {
+    const filled = Boolean(e.target.value.trim());
+    $('btn-import').disabled = !filled || !state.document;
+    $('btn-clear-response').hidden = !filled;
+  });
+  $('btn-clear-response').addEventListener('click', () => {
+    $('manual-response').value = '';
+    $('manual-response').dispatchEvent(new Event('input'));
+    $('manual-response').focus();
+  });
+  $('btn-import').addEventListener('click', importManualResponse);
+}
+
+function resetManual() {
+  state.manualPrompt = '';
+  $('manual-box').hidden = true;
+  $('manual-prompt').value = '';
+  $('manual-prompt-size').textContent = '';
+  $('manual-response').value = '';
+  $('btn-import').disabled = true;
+  $('btn-clear-response').hidden = true;
+  $('copy-status').textContent = '';
+}
+
+// O pedido é montado logo após a leitura, para a cópia acontecer no próprio clique.
+async function prepareManualPrompt() {
+  try {
+    state.manualPrompt = await api.buildManualPrompt(state.document);
+    $('manual-prompt').value = state.manualPrompt;
+    $('manual-prompt-size').textContent = `(${state.manualPrompt.length.toLocaleString('pt-BR')} caracteres)`;
+    $('manual-box').hidden = false;
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function copyManualPrompt() {
+  if (!state.manualPrompt) return;
+  const status = $('copy-status');
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(state.manualPrompt);
+    copied = true;
+  } catch {
+    // Alternativa para navegadores que bloqueiam a área de transferência.
+    const area = $('manual-prompt');
+    $('manual-prompt-box').open = true;
+    area.focus();
+    area.select();
+    try {
+      copied = document.execCommand('copy');
+    } catch {
+      copied = false;
+    }
+  }
+  status.className = `copy-status${copied ? '' : ' st-error'}`;
+  status.textContent = copied
+    ? 'Pedido copiado. Cole no claude.ai (Ctrl+V) e envie.'
+    : 'Não foi possível copiar automaticamente. O pedido está selecionado abaixo: use Ctrl+C.';
+}
+
+async function importManualResponse() {
+  if (!state.document) return;
+  showError('');
+  const btn = $('btn-import');
+  btn.disabled = true;
+  try {
+    const result = await api.importManualResult(state.document, $('manual-response').value);
+    state.review = result.review;
+    state.meta = result.meta;
+    prepareResult();
+    state.theme = 'resumo';
+    go('resultado');
+  } catch (err) {
+    showError(err.message);
+    $('global-error').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } finally {
+    btn.disabled = !$('manual-response').value.trim();
+  }
 }
 
 // ---------------------------------------------------------------------------
