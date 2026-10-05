@@ -62,4 +62,27 @@ export async function exportDocx(payload) {
   return res.blob();
 }
 
+// Modo sem API: pedido para colar no claude.ai e leitura da resposta colada.
+export async function buildManualPrompt(document) {
+  const res = await fetch('api/manual/prompt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ document }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.erro || 'Falha ao montar o pedido.');
+  return data.pedido;
+}
+
+export async function importManualResult(document, resposta) {
+  const res = await fetch('api/manual/result', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ document, resposta }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.erro || 'Falha ao ler a resposta colada.');
+  return { review: data.review, meta: data.meta };
+}
+
 export function setApiKey() {}

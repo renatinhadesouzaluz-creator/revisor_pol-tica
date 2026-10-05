@@ -92,6 +92,19 @@ Para parar o servidor, pressione `Ctrl + C` no terminal.
 
 A ferramenta abre vazia, pronta para receber a sua política — não há documentos de exemplo.
 
+### Revisão sem chave de API (pelo claude.ai)
+
+Sem chave da API, a revisão pode ser feita com a sua conta no **claude.ai**. Funciona na versão com servidor (quando o `.env` não tem `ANTHROPIC_API_KEY`, a ferramenta entra direto nesse modo) e na versão em arquivo único (como alternativa ao campo da chave).
+
+1. Envie a política normalmente (.docx, .txt ou .md).
+2. Na caixa **“Revisar pelo claude.ai”**, clique em **Copiar pedido para o Claude**. O pedido traz as regras de revisão de `server/prompt.js`, o formato de resposta esperado (JSON) e a política numerada em blocos.
+3. Abra uma nova conversa no claude.ai, cole o pedido e envie. Aguarde a resposta terminar (se o Claude parar no meio, peça “continue” e junte as partes).
+4. Copie a resposta inteira do Claude (o bloco JSON), cole no campo **“Cole aqui a resposta do Claude”** e clique em **Exibir revisão**.
+
+A resposta passa pela mesma validação da revisão automática e é exibida nas mesmas telas (Resumo, DE/PARA, Questionamentos etc.), com os mesmos downloads em HTML e .docx. Se a resposta estiver incompleta ou em outro formato, a ferramenta avisa e nada é exibido.
+
+> Neste modo, o texto da política só sai do computador quando a pessoa o cola no claude.ai, com a própria conta. Siga as orientações de Segurança da Informação para o uso de documentos internos.
+
 ### Versão em arquivo único (sem instalar nada)
 
 O arquivo `dist/revisor-politicas-cimed.html` contém a ferramenta inteira. Basta abri-lo no navegador (Chrome ou Edge), informar a **chave da API da Anthropic** no campo indicado e enviar a política.
@@ -232,6 +245,7 @@ Recomendações para uso contínuo:
 │   ├── prompt.js               # PROMPT DO REVISOR (regras de revisão)
 │   ├── schema.js               # Schema JSON do retorno da IA + validação
 │   ├── reviewer.js             # Chamada à API da Anthropic (streaming)
+│   ├── manual-review.js        # Modo sem API: pedido para o claude.ai e leitura da resposta
 │   ├── demo-reviewer.js        # Revisão simulada usada apenas nos testes (DEMO_MODE=true)
 │   ├── document-parser.js      # Leitura de .docx, .txt, .md e .pdf
 │   └── docx-exporter.js        # Geração da política revisada em .docx
@@ -254,6 +268,8 @@ Rotas do servidor:
 | `POST /api/parse` | Recebe o arquivo e devolve a estrutura do documento. |
 | `POST /api/review` | Executa a revisão; devolve progresso e resultado em streaming (NDJSON). |
 | `POST /api/export/docx` | Gera a política revisada em .docx. |
+| `POST /api/manual/prompt` | Modo sem API: monta o pedido para colar no claude.ai. |
+| `POST /api/manual/result` | Modo sem API: valida a resposta colada e devolve a revisão. |
 
 ## 12. Testes
 
@@ -277,7 +293,8 @@ Cobre: leitura de .docx (numeração, listas, tabelas), .md e .txt; erros de upl
 
 | Situação | O que fazer |
 |---|---|
-| “IA não configurada” no topo | Crie o `.env` com `ANTHROPIC_API_KEY` e reinicie o servidor. |
+| “Modo sem API · claude.ai” no topo | Não há chave configurada: use a revisão pelo claude.ai ou crie o `.env` com `ANTHROPIC_API_KEY` e reinicie o servidor. |
+| “Não foi possível ler a resposta colada” | Copie a resposta inteira do Claude (o bloco JSON completo) e cole novamente. |
 | “Chave da API inválida ou ausente” | Confira a chave no `.env` (sem espaços ou aspas extras). |
 | “Limite de uso da API atingido” | Aguarde alguns minutos e tente novamente. |
 | “Documento grande demais” | Divida a política em partes e revise separadamente. |

@@ -163,3 +163,19 @@ Retorne somente o JSON da revisão.`;
 export function buildSchemaInstruction(schemaJson) {
   return `\n\n# FORMATO OBRIGATÓRIO DA RESPOSTA\n\nResponda apenas com um objeto JSON válido que siga exatamente este JSON Schema (todos os campos são obrigatórios; use "" ou [] quando não houver conteúdo):\n\n${schemaJson}`;
 }
+
+// Pedido completo para o modo sem API: a pessoa copia este texto, cola em uma
+// conversa no claude.ai e traz a resposta de volta para a ferramenta.
+export function buildManualPrompt({ fileName, documentText, schemaJson }) {
+  return `${SYSTEM_PROMPT}${buildSchemaInstruction(schemaJson)}
+
+# ENTREGA DA RESPOSTA NESTA CONVERSA
+
+- A resposta será colada de volta na ferramenta de revisão, que lê o JSON automaticamente.
+- Entregue o JSON completo em um único bloco de código \`\`\`json, sem texto antes ou depois.
+- Não resuma, não abrevie e não omita campos ou apontamentos para encurtar a resposta.
+
+# POLÍTICA A REVISAR
+
+${buildUserMessage({ fileName, documentText })}`;
+}

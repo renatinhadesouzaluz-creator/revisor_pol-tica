@@ -21,6 +21,7 @@ const { reviewDocument, ReviewError, config: reviewConfig } = await import('./re
 const { demoReview } = await import('./demo-reviewer.js');
 const { buildRevisedDocx } = await import('./docx-exporter.js');
 const { validateReview } = await import('./schema.js');
+const { buildManualRequest, importManualResponse } = await import('./manual-review.js');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -186,6 +187,29 @@ async function handleReview(req, res) {
   }
 }
 
+// Modo sem API: monta o pedido para o claude.ai e lê a resposta colada de volta.
+async function handleManualPrompt(req, res) {
+  const body = await readJson(req, 20 * 1024 * 1024);
+  const doc = sanitizeDocument(body.document);
+  sendJson(res, 200, { pedido: buildManualRequest(doc) });
+}
+
+async function handleManualResult(req, res) {
+  const body = await readJson(req, 30 * 1024 * 1024);
+  const doc = sanitizeDocument(body.document);
+  try {
+    const result = importManualResponse(String(body.resposta ?? ''), doc);
+    console.info(`[revisao-manual] resposta importada blocos=${doc.blocks.length} ajustes=${result.ajustesValidacao.length}`);
+    sendJson(res, 200, {
+      review: result.review,
+      meta: { modelo: result.modelo, manual: true, demo: false, date: new Date().toISOString(), ajustesValidacao: result.ajustesValidacao },
+    });
+  } catch (err) {
+    if (err instanceof ReviewError) throw new HttpError(err.status, err.message);
+    throw err;
+  }
+}
+
 async function handleExportDocx(req, res) {
   const body = await readJson(req, 30 * 1024 * 1024);
   const doc = sanitizeDocument(body.document);
@@ -237,6 +261,8 @@ const server = http.createServer(async (req, res) => {
       if (pathname === '/api/parse') return await handleParse(req, res);
       if (pathname === '/api/review') return await handleReview(req, res);
       if (pathname === '/api/export/docx') return await handleExportDocx(req, res);
+      if (pathname === '/api/manual/prompt') return await handleManualPrompt(req, res);
+      if (pathname === '/api/manual/result') return await handleManualResult(req, res);
       throw new HttpError(404, 'Rota não encontrada.');
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'Método não permitido.');
@@ -256,7 +282,7 @@ server.timeout = 0;
 server.listen(PORT, HOST, () => {
   console.info(`Revisor Inteligente de Políticas em http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
   if (DEMO) console.info('MODO DEMONSTRAÇÃO ativo: revisões simuladas, sem IA.');
-  else if (!API_CONFIGURED) console.warn('ATENÇÃO: ANTHROPIC_API_KEY não configurada. Crie o arquivo .env (veja .env.example).');
+  else if (!API_CONFIGURED) console.info('Sem ANTHROPIC_API_KEY: a revisão funciona no modo sem API (pedido copiado para o claude.ai). Para a revisão automática, crie o arquivo .env (veja .env.example).');
   else console.info(`Modelo: ${reviewConfig().model} · esforço: ${reviewConfig().effort}`);
   if (HOST === '0.0.0.0' && !(AUTH_USER && AUTH_PASSWORD)) {
     console.warn('ATENÇÃO: servidor exposto na rede sem senha. Considere definir APP_USER e APP_PASSWORD.');
